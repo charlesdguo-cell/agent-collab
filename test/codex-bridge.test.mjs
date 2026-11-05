@@ -1,0 +1,29 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {runConversation,unattendedResponse} from '../lib/codex-bridge.mjs';
+test('unattended client responses never grant permissions or invent user answers',()=>{
+ for(const m of ['item/commandExecution/requestApproval','item/fileChange/requestApproval'])assert.deepEqual(unattendedResponse(m),{decision:'decline'});
+ assert.deepEqual(unattendedResponse('item/permissions/requestApproval').permissions,{});
+ assert.equal(unattendedResponse('mcpServer/elicitation/request').action,'decline');
+ assert.deepEqual(unattendedResponse('item/tool/requestUserInput'),{answers:{}});
+ assert.equal(unattendedResponse('item/tool/call').success,false);
+ assert.equal(unattendedResponse('unknown/request'),undefined);
+});
+test('real stdio protocol continues after a declined approval and reports its limitation',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'collab-client-'));
+ try{
+  const bin=join(dir,'fake-codex');writeFileSync(bin,`#!${process.execPath}
+import('node:readline').then(({createInterface})=>createInterface({input:process.stdin}).on('line',line=>{
+const m=JSON.parse(line),send=x=>console.log(JSON.stringify(x));
+if(m.method==='initialize')send({id:m.id,result:{}});
+if(m.method==='thread/start')send({id:m.id,result:{thread:{id:'same-thread'}}});
+if(m.method==='turn/start'){send({id:m.id,result:{}});send({id:91,method:'item/commandExecution/requestApproval',params:{command:'restricted-command'}});}
+if(m.id===91){if(m.result?.decision!=='decline')process.exit(7);send({method:'item/completed',params:{threadId:'same-thread',item:{type:'agentMessage',text:JSON.stringify({reply:'Command not approved; no update performed.',next:null})}}});send({method:'turn/completed',params:{threadId:'same-thread',turn:{status:'completed'}}});}
+}));`,{mode:0o755});
+  const r=await runConversation({runtime:'codex',project:dir},'conversation','check',{config:{codexBin:bin,timeoutMs:5000}});
+  assert.equal(r.completed,true);assert.match(r.text,/no update performed/);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
