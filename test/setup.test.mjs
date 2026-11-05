@@ -9,9 +9,11 @@ test('local setup discovers bot, pairs only in private chat, and saves verified 
  try{
   assert.equal((await post('/discover',{},'https://foreign.example')).status,400);
   const body={appId:'cli_0000000000000000',appSecret:'fake-unit-test-only'};
+  assert.equal((await post('/config',{...body,owner:'ou_forged',botId:'ou_forged'})).status,400);
   const discovery=await (await post('/discover',body)).json();assert.equal(discovery.botId,'ou_discovered');assert.ok(!('appSecret' in discovery));
   handler({chatType:'group',senderType:'user',sender:'ou_attacker',text:discovery.pairCode});
   assert.equal((await (await post('/pair',{})).json()).owner,null);
+  assert.equal((await post('/config',{...body,owner:'ou_forged',botId:'ou_forged'})).status,400);
   handler({chatType:'p2p',senderType:'user',sender:'ou_owner',text:discovery.pairCode});
   assert.equal((await (await post('/pair',{})).json()).owner,'ou_owner');
   assert.equal((await post('/config',{...body,appSecret:'changed'})).status,400);

@@ -9,6 +9,8 @@ Resolve this Skill symlink to its concrete release. Runtime root is two parents 
 
 Each person binds their own execution computer and dedicated bot. The binding is not a restriction on conversation partners. Do not run another person's bot here to simulate their installation. Never share an active bot listener between computers.
 
+Before setup, read [Feishu setup](references/feishu-setup.md). For a failure read [troubleshooting](references/troubleshooting.md). After setup, read [daily usage and task handoff](references/usage.md), and teach the user the new-task/topic/approval flow. These references are bundled; no maintainer instructions are needed.
+
 ## Setup and acceptance
 
 1. Inspect existing configuration metadata without printing `appSecret`. Confirm the user's local project. Preserve existing configuration/service and continue from its actual phase; don't overwrite or restart blindly.
