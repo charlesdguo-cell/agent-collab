@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Agent Collab · 连接开发助手</title>
+<style>
+body{font:16px system-ui;max-width:600px;margin:40px auto;padding:24px;color:#24332e;background:#fafbf9}h1{font-size:30px}h2{font-size:19px;margin-top:30px}label{display:block;margin:16px 0}input,select,button{box-sizing:border-box;font:inherit;width:100%;padding:12px;border:1px solid #cbd3cd;border-radius:8px;background:white}button{background:#204c3b;color:white;cursor:pointer}button:disabled{opacity:.5}small{color:#66736c;display:block;margin-top:6px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eaf0e9;padding:14px;border-radius:8px}details{margin:20px 0}input:focus,select:focus,button:focus{outline:2px solid #618b68;outline-offset:2px}
+</style>
+<h1>连接你的开发助手</h1>
+<p>一次配置，之后在飞书群里协作。凭据只保存到这台电脑，不会发进群聊。</p>
+<p><small>开发预览版 · 尚未完成真实机器人、双 Agent 和干净机器安装验收。</small></p>
+<form id="setup">
+<h2>1 · 连接你自己的飞书机器人</h2>
+<small>在飞书开放平台创建企业自建应用，启用机器人并发布；在“事件与回调”启用长连接，订阅 im.message.receive_v1，并开通消息收发、历史读取权限。将机器人加入协作群。</small>
+<label>App ID<input name="appId" required placeholder="cli_…" autocomplete="off"></label>
+<label>App Secret<input name="appSecret" required type="password" autocomplete="off"></label>
+<button type="button" id="discover">验证机器人并开始私聊配对</button>
+<pre id="pairStatus" hidden></pre>
+<h2>2 · 选择协作位置</h2>
+<label>飞书群 ID 或群链接<input name="chatId" required placeholder="oc_… 或带 openChatId 的群链接"></label>
+<label>你的称呼<input name="ownerName" required placeholder="团队熟悉的名字"></label>
+<label>开发工具<select name="runtime"><option value="codex">Codex</option><option value="claude">Claude Code</option></select></label>
+<label>项目文件夹<input name="project" required placeholder="例如 /Users/me/Projects/my-app"><small>填入本机已有文件夹的完整路径。</small></label>
+<details><summary>高级：手动填写身份 ID</summary><label>机器人 open_id<input name="botId" placeholder="自动获取；也可填 ou_…"></label><label>你的 open_id<input name="owner" placeholder="私聊配对后自动填入；也可填 ou_…"></label></details>
+<button id="save">保存并继续安装</button>
+</form><pre id="status" hidden></pre>
+<script>
+const key=location.hash.slice(1);history.replaceState(null,'','/');
+const form=document.querySelector('form'),status=document.querySelector('#status'),pair=document.querySelector('#pairStatus');let poll;
+async function post(path,body){const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(body)});const d=await response.json();if(!d.ok)throw Error(d.error);return d;}
+function show(message){status.hidden=false;status.textContent=message;}
+document.querySelector('#discover').onclick=async e=>{e.target.disabled=true;try{
+ const d=await post('/discover',{appId:form.elements.appId.value,appSecret:form.elements.appSecret.value});form.elements.botId.value=d.botId;
+ pair.hidden=false;pair.textContent='已识别：'+d.botName+'。请在飞书中私聊这个机器人，发送以下文字（十分钟内有效，不要发到群里）：\n'+d.pairCode;
+ clearInterval(poll);poll=setInterval(async()=>{try{const state=await post('/pair',{});if(state.owner){form.elements.owner.value=state.owner;pair.textContent='私聊配对成功，已识别你的身份。';clearInterval(poll);}else if(state.expired){pair.textContent='配对已过期，请重新验证机器人。';clearInterval(poll);}}catch{clearInterval(poll);}},1500);
+ }catch(error){show(error.message);}finally{e.target.disabled=false;}};
+form.onsubmit=async e=>{e.preventDefault();document.querySelector('#save').disabled=true;try{
+ await post('/config',Object.fromEntries(new FormData(form)));clearInterval(poll);form.elements.appSecret.value='';show('配置已保存。请回到安装窗口，继续完成开发工具登录和后台启动。最后在群里 @机器人发送“查看任务”验证收发。');
+ }catch(error){show(error.message);document.querySelector('#save').disabled=false;}};
+</script></html>
