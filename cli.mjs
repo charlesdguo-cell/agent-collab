@@ -56,8 +56,15 @@ async function main(){
       const authenticated=installed && spawnSync(bin,runtime==='codex'?['login','status']:['auth','status'],{encoding:'utf8',timeout:15000}).status===0;
       checks[runtime]={installed,authenticated};
     }
+    if(c.runtime==='codex')checks.bridge=await (await import('./lib/codex-bridge.mjs')).bridgeDoctor(c);
+    try{
+      const {Feishu}=await import('./lib/feishu.mjs');const f=new Feishu(c);
+      const bot=await Feishu.discover(c.appId,c.appSecret);
+      const roster=await f.bots(c.chatId);await f.history(c.chatId,{limit:1});
+      checks.feishu={ready:bot.botId===c.botId&&roster.some(b=>b.bot_id===c.botId),identityMatched:bot.botId===c.botId,memberDirectory:true,historyReadable:true,eventDeliveryVerified:false};
+    }catch{checks.feishu={ready:false,error:'请核对机器人身份、入群状态、群成员与历史读取权限；凭据未输出'};}
     const s=db();checks.uncertain=s.one("SELECT COUNT(*) n FROM jobs WHERE state='uncertain'").n;checks.failedDeliveries=s.one("SELECT COUNT(*) n FROM outbox WHERE state='failed'").n;checks.messageGap=s.one("SELECT value FROM meta WHERE key='sync:error'")?.value||null;s.close();
-    console.log(JSON.stringify(checks,null,2));if(!checks[c.runtime].authenticated)process.exitCode=1;return;
+    console.log(JSON.stringify(checks,null,2));if(!checks[c.runtime].authenticated || !checks.feishu.ready || (c.runtime==='codex'&&!checks.bridge.ready))process.exitCode=1;return;
   }
   if(cmd==='install-service'){readConfig();installService();return;}
   if(cmd==='task'){
@@ -78,8 +85,7 @@ async function main(){
     await f.listen(e=>service.receive(e));
     await service.reconcile();
     const timer=setInterval(()=>service.tick().catch(()=>console.error('本轮处理失败，状态已保留；请检查本机诊断。')),2000);
-    const syncTimer=setInterval(()=>service.reconcile(),60000);
-    const stop=()=>{clearInterval(timer);clearInterval(syncTimer);for(const ctrl of service.active.values())ctrl.abort();f.ws?.close();service.api.server.close();unlock();process.exit(0);};
+    const stop=()=>{clearInterval(timer);for(const ctrl of service.active.values())ctrl.abort();f.ws?.close();service.api.server.close();unlock();process.exit(0);};
     process.on('SIGINT',stop);process.on('SIGTERM',stop);process.on('exit',unlock);
     console.log('协作服务已启动；请在指定群内验证消息闭环。');return;
   }

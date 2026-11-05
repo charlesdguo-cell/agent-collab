@@ -46,4 +46,4 @@ if not current.is_symlink() or current.resolve()!=release:
 for dest,target in links.items():
  dest.parent.mkdir(parents=True,exist_ok=True)
  if not dest.is_symlink():dest.symlink_to(target,target_is_directory=True)
-print(json.dumps({'installed':True,'configured':False,'running':False,'version':version,'runtime':str(release),'skills':[str(x) for x in links],'next':'Read installed agent-collab SKILL.md and complete configuration, doctor and real group roundtrip.'}))
+print(json.dumps({'installed':True,'configured':False,'running':False,'version':version,'runtime':str(release),'skills':[str(x) for x in links],'next':'Read installed agent-collab SKILL.md and complete configuration, doctor and automatic service checks.'}))
