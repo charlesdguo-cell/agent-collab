@@ -23,8 +23,10 @@ Before setup, read [Feishu setup](references/feishu-setup.md). For a failure rea
 
 ## Day-to-day diagnosis
 
-Use `doctor`, `task list`, and the configured service's bounded local logs. Do not publish config files or entire conversation databases. First check identity, device, bot, group, original task/session and message/thread mapping. Do not put ambiguous replies into the most recent session.
+Use `doctor`, `topic status TASK`, `task list`, and the configured service's bounded local logs. Do not publish config files or entire conversation databases. First check identity, device, bot, group, original task/session and message/thread mapping. Do not put ambiguous replies into the most recent session.
 
 For ordinary topics the runtime supplies the collaboration output contract and context. Legacy managed tasks additionally receive the team-consult Skill and task-scoped MCP tools. This management Skill does not give an arbitrary terminal session automatic async wakeup. If the task is not managed, establish a managed task explicitly rather than claiming its terminal session can be resumed.
 
 Codex topic conversations and bounded AI exchange have maintainer integration evidence; do not call a handshake, mock test, or another computer a successful user installation. Claude, native attachments and task-artifact automatic publishing remain unverified or incomplete. No automatic public upload of local projects. Never invite other testers or send team-wide onboarding messages without the user's instruction.
+
+For an explicitly authorized separate local identity while another disabled installation must be preserved, use a separate runtime root, Skill directory and `AGENT_COLLAB_HOME`. `AGENT_COLLAB_SERVICE_LABEL=ai.ikigen.agent-collab.NAME` selects a distinct launchd label. Never reuse the other identity’s credentials or overwrite its plist. Record these paths for the local Agent.

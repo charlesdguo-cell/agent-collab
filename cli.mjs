@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {readFileSync,writeFileSync,mkdirSync,openSync,closeSync,unlinkSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,openSync,closeSync,unlinkSync,existsSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {homedir} from 'node:os';
 import {Store} from './lib/store.mjs';
@@ -27,11 +27,14 @@ function installService(){
   if(process.platform!=='darwin')throw Error('当前后台安装器仅完成 macOS；其他平台尚待验收');
   const esc=s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
   const folder=join(homedir(),'Library/LaunchAgents');mkdirSync(folder,{recursive:true});mkdirSync(home(),{recursive:true,mode:0o700});
-  const file=join(folder,'ai.ikigen.agent-collab.plist');
+  const label=process.env.AGENT_COLLAB_SERVICE_LABEL||'ai.ikigen.agent-collab';
+  if(!/^ai\.ikigen\.agent-collab(?:\.[a-z0-9-]+)?$/.test(label))throw Error('无效服务名称');
+  const file=join(folder,label+'.plist');
+  if(existsSync(file))throw Error('已有后台服务文件，未覆盖；请核对原配置');
   const domain=`gui/${process.getuid()}`;
-  const check=spawnSync('launchctl',['print',`${domain}/ai.ikigen.agent-collab`],{stdio:'ignore'});
+  const check=spawnSync('launchctl',['print',`${domain}/${label}`],{stdio:'ignore'});
   if(check.status===0)throw Error('后台服务已安装；未替换运行进程或配置，请先核对现有版本');
-  const xml=`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>Label</key><string>ai.ikigen.agent-collab</string><key>ProgramArguments</key><array><string>${esc(process.execPath)}</string><string>${esc(join(here,'cli.mjs'))}</string><string>start</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>ThrottleInterval</key><integer>30</integer><key>EnvironmentVariables</key><dict><key>PATH</key><string>${esc(process.env.PATH)}</string><key>AGENT_COLLAB_HOME</key><string>${esc(home())}</string></dict><key>StandardOutPath</key><string>${esc(join(home(),'service.log'))}</string><key>StandardErrorPath</key><string>${esc(join(home(),'service-error.log'))}</string></dict></plist>`;
+  const xml=`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>Label</key><string>${esc(label)}</string><key>ProgramArguments</key><array><string>${esc(process.execPath)}</string><string>${esc(join(here,'cli.mjs'))}</string><string>start</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/><key>ThrottleInterval</key><integer>30</integer><key>EnvironmentVariables</key><dict><key>PATH</key><string>${esc(process.env.PATH)}</string><key>AGENT_COLLAB_HOME</key><string>${esc(home())}</string></dict><key>StandardOutPath</key><string>${esc(join(home(),'service.log'))}</string><key>StandardErrorPath</key><string>${esc(join(home(),'service-error.log'))}</string></dict></plist>`;
   writeFileSync(file,xml,{mode:0o600});
   const r=spawnSync('launchctl',['bootstrap',domain,file],{encoding:'utf8'});
   if(r.status!==0)throw Error('后台服务注册失败，请查看本机系统日志');
@@ -76,6 +79,17 @@ async function main(){
       else throw Error('task new 从 stdin 读取 {title,request}；task list 查看任务');
     }finally{s.close();}return;
   }
+  if(cmd==='topic'){
+    const c=readConfig(),s=db();
+    try{
+      const {Conversations}=await import('./lib/conversations.mjs'),topics=new Conversations(s,c);
+      if(args[0]==='start')console.log(JSON.stringify(topics.localStart(await stdin())));
+      else if(args[0]==='reply')console.log(JSON.stringify(topics.localFollow(await stdin())));
+      else if(args[0]==='status')console.log(JSON.stringify(topics.localStatus(args[1])));
+      else if(args[0]==='members')console.log(JSON.stringify(topics.roles()));
+      else throw Error('topic start/reply 从 stdin 读取 JSON；status TASK；members 查看群内名录');
+    }finally{s.close();}return;
+  }
   if(cmd==='start'){
     const c=readConfig(),unlock=lock(),s=db();
     const {Feishu}=await import('./lib/feishu.mjs'),{Service}=await import('./lib/service.mjs');
@@ -89,6 +103,6 @@ async function main(){
     process.on('SIGINT',stop);process.on('SIGTERM',stop);process.on('exit',unlock);
     console.log('协作服务已启动；请在指定群内验证消息闭环。');return;
   }
-  console.log('Agent Collab alpha\nsetup · 本机配置向导\ndoctor · 检查环境\ninstall-service · macOS 后台自启动\nstart · 前台运行\ntask new/list · 创建/查看任务\nconsult open/revise/status · 供受管 Agent 使用');
+  console.log('Agent Collab alpha\nsetup · 本机配置向导\ndoctor · 检查环境\ninstall-service · macOS 后台自启动\nstart · 前台运行\ntopic start/reply/status/members · 本机主动协作\ntask new/list · 旧版任务\nconsult open/revise/status · 供受管 Agent 使用');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

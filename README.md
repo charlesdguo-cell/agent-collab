@@ -60,3 +60,5 @@ node cli.mjs start
 `doctor` 检查登录和 app-server 握手，不调用模型，不把握手当作任务成功。macOS `install-service` 注册后台服务；启动状态不能替代消息闭环证据。
 
 安装器只分发运行白名单，不携带用户配置、聊天或项目。运行时不自动公开项目；模型调用仍使用安装者的 Codex 提供方，群回复经飞书发送。私有验收原始记录不进入公开仓库。
+
+本机 Codex 可通过 `topic start` 主动建立群话题，`topic reply` 续聊，`topic status TASK` 读取结果，`topic members` 获取本应用视角的身份名录。输入格式见安装后的 usage.md。该入口建立独立持久会话，不接管当前终端；讨论结果由当前终端读取后继续使用。

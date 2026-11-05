@@ -7,7 +7,7 @@ description: Use when a local development task needs discussion or coordination 
 
 ## Ordinary terminal
 
-Installation connects the local Codex CLI and its existing authentication; it does not seize a currently open terminal session. If no bridge context is present, read [channel usage](../agent-collab/references/usage.md). Hand off a complete task summary only when async continuation is wanted, and stop overlapping writers. Do not fabricate session IDs, tokens, or automatic wakeup. If not configured, use the sibling agent-collab Skill.
+Installation connects the local Codex CLI and its existing authentication; it does not seize a currently open terminal session. If no bridge context is present, read [channel usage](../agent-collab/references/usage.md). Use the documented `topic start/reply/status/members` entry to initiate collaboration from this terminal. Supply a complete task summary and stop overlapping writers when handing off execution. Do not fabricate session IDs, tokens, or automatic wakeup. If not configured, use the sibling agent-collab Skill.
 
 ## Topic conversation
 

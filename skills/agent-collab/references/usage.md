@@ -6,7 +6,14 @@ Read the discoverable team-consult Skill. It distinguishes ordinary terminal ses
 
 For a new managed task, the owner sends a NEW top-level group message mentioning their bot: `新任务：<goal, constraints, expected deliverable>`. Do not reply inside an unrelated topic. The bot binds that topic to a persistent local Codex thread. Replies belong in that topic.
 
-The local Agent can also explicitly hand off work through the CLI: write a JSON file with `title` and `request`, then provide it as stdin to `node /absolute/runtime/cli.mjs task new`. This queues a NEW managed session in the configured local project, NOT a continuation of the current terminal session. Include current work, decisions, relevant file paths, checks already run, remaining goal and who must decide. Stop the overlapping work in the old session; don't spawn two writers. Use the returned task ID and `task list` to verify creation, not merely process exit. CLI-created tasks don't have a group task root until they open a consultation, so group-created tasks are preferable for visible result tracking.
+The local Agent starts a visible topic directly, without asking the user to send a group message:
+
+1. Read `topic members` for receiver-local bot IDs and role records. Match the intended name; clarify ambiguity rather than guess. Never reuse IDs from another app.
+2. Write a JSON file `{ "requestId": "unique-stable-id", "title": "short topic", "request": "complete context, goal, constraints, intended colleague and what to ask" }`. Submit its contents on stdin to `node /absolute/runtime/cli.mjs topic start`. Reuse the same requestId and exact request if submission outcome is uncertain. Do not put credentials or unnecessary private context in this file. The request may be shared with the intended collaborators as needed.
+3. The returned task is queued, not yet delivered. `topic status TASK` reports actual root message, jobs and latest messages. A root is bound only after successful group delivery. The background service must be running.
+4. To add to that topic, submit `{ "task": "T-...", "requestId": "another-stable-id", "request": "follow-up" }` on stdin to `topic reply`. It keeps the managed Codex thread. `topic status TASK` lets the initiating terminal read results and continue its own work. Waiting must be bounded; no claim of automatic terminal wakeup.
+
+The bridge-managed Codex session is separate from the current terminal session. Give it sufficient context; do not run overlapping file writers. For consultation-only handoff, explicitly say to investigate/discuss and return conclusions, leaving implementation with the initiating terminal. Legacy `task new` retains the older approval workflow and is not the default collaboration entry.
 
 ## Ordinary group topics
 

@@ -85,3 +85,21 @@ test('topic read retains original message and marks missing reply permission as 
 test('unsupported conversation runtime never silently launches Codex',async()=>{
  const {runConversation}=await import('../lib/codex-bridge.mjs');await assert.rejects(runConversation({runtime:'claude'},'conversation','test'),/仅支持 Codex/);
 });
+test('local Codex starts only after real root delivery, retries deduplicate and followups keep session',async()=>{
+ const {s,svc}=fixture();const topics=svc.conversations;
+ const a=topics.localStart({requestId:'local-1',title:'Discuss',request:'Compare A and B'});
+ assert.equal(a.root,null);assert.equal(s.all('SELECT * FROM jobs').length,0);
+ assert.equal(topics.localStart({requestId:'local-1',request:'Compare A and B'}).task,a.task);
+ await svc.tick();const first=topics.localStatus(a.task);assert.equal(first.root,'om_out_1');assert.equal(first.jobs.length,1);assert.equal(first.jobs[0].state,'done');
+ const session=s.task(a.task).session;
+ topics.localFollow({task:a.task,requestId:'follow-1',request:'Explain the tradeoff'});
+ topics.localFollow({task:a.task,requestId:'follow-1',request:'Explain the tradeoff'});
+ await svc.tick();assert.equal(s.task(a.task).session,session);assert.equal(topics.localStatus(a.task).jobs.length,2);
+ assert.throws(()=>topics.localFollow({task:a.task,requestId:'follow-1',request:'different'}),/已用于/);
+ assert.ok(s.all('SELECT * FROM outbox').slice(1).every(x=>x.root==='om_out_1'));s.close();
+});
+test('failed local root delivery never triggers model or creates a fictional topic',async()=>{
+ const {s,svc}=fixture();svc.transport.send=async()=>{throw Error('unavailable');};
+ const a=svc.conversations.localStart({requestId:'offline',request:'test'});await svc.tick();await svc.tick();
+ const result=svc.conversations.localStatus(a.task);assert.equal(result.root,null);assert.equal(result.delivery.state,'failed');assert.equal(result.jobs.length,0);s.close();
+});

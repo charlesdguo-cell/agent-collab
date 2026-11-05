@@ -4,7 +4,7 @@ You are the installing Agent on the user's own computer. Complete the workflow, 
 
 1. Read the user's project instructions. Confirm the actual computer and desired local project directory. Check existing `~/.local/share/agent-collab`, `~/.agents/skills/agent-collab`, `~/.agent-collab` and launchd service without printing secrets. Preserve existing installs; do not launch a duplicate bot or overwrite a configuration.
 2. Clone the PUBLIC repository without credentials into a new local checkout:
-   `git clone --branch v0.1.0-alpha.6 --depth 1 https://github.com/charlesdguo-cell/agent-collab.git`
+   `git clone --branch v0.1.0-alpha.7 --depth 1 https://github.com/charlesdguo-cell/agent-collab.git`
    Read its source before executing the installer. Record `git rev-parse HEAD`. Do not copy code from an unrelated local project or run a moving main branch instead of this tagged release.
 3. Check `node --version`, `npm --version`, `python3 --version`, `codex --version`, and `codex login status`. Reuse valid existing Codex login. If Node 24+ is missing, install an official Node distribution for the actual OS/architecture and verify its published SHA-256 first. Never disable TLS or system security. If tooling cannot be installed under the Agent's permissions, report the precise missing prerequisite.
 4. In the checkout run `python3 scripts/install.py`. It installs a versioned runtime and a stable Skill link, but DOES NOT configure credentials, start the bot, or claim acceptance. Existing differing installations are preserved rather than overwritten.
