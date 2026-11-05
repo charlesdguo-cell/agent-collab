@@ -38,6 +38,12 @@ No human is inherently required to participate in or end an AI-only exchange. Se
 
 Feishu bot-to-bot event permissions and sender/mention identity must be proven with two real applications before claiming this transport works. Do not replace this test with synthetic sender_type values or role-memory assertions.
 
+## Third-party consultation and private delivery
+
+Default to @ the selected participant in the original topic. Consulting a different peer creates a child exchange, preserving the original waiting exchange and local task/session. Child final results resume that parent and may close it with a substantive answer, without acknowledgement loops. Child handoffs inherit the remaining turn budget/deadline; a new UUID does not reset limits.
+
+Explicit `next.channel="private"` sends through an open_id outbox destination with no group reply root. Store origin task/topic, authenticated peer, delivered private message/chat IDs and parent exchange. Admit private replies only by delivered quote or exact protocol correlation plus verified sender/chat; unsolicited, ambiguous, wrong-chat, late or paused/cancelled routes cannot resume a task. Persist private replay checkpoints separately. Private contact is not permission to disclose unrelated private history. Non-protocol bots must quote the currently delivered question with one final text answer; streaming cards/progress are not supported final-answer signals. Humans may answer a uniquely outstanding same-topic request; unrelated bot messages do not wake the model.
+
 ## Local group role memory
 
 Each installation stores private group-scoped data, separate from global personality memory. Suggested key: tenant/app/group, with local participant IDs and verified app-scoped aliases. Records describe person/bot linkage, execution owner, areas of responsibility, who to consult, decision authority (only when explicitly given), evidence message IDs, source, update time and confirmation status.
