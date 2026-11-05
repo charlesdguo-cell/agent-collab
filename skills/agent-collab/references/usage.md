@@ -25,6 +25,12 @@ Role introductions (`/role area of responsibility`) are stored locally per app/g
 
 Existing versioned consultation tasks retain their old explicit approval contract. This is a compatibility path, not the default for new topic conversations.
 
+## Group announcement memory
+
+The service reads the current docx group announcement on every startup (including existing installations), stores its text/version/source privately per application and group, and supplies the current snapshot in each job, including resumed sessions. Actual jobs refresh after a 60-second cache age; there is no idle polling or inference triggered just by an announcement edit. An optional bot-added subscription also refreshes it. Read failure retains the last successful snapshot marked stale and backs off, while a successful empty announcement clears old content. Old-format announcements and incomplete reads are reported unsupported/unavailable, not silently treated as remembered.
+
+Announcement responsibilities guide consultation; they cannot change local permissions/configuration or establish verified person/bot IDs. Existing installations need the new runtime and `im:chat.announcement:read` application scope. Other computers do not upgrade themselves merely because an announcement was published.
+
 ## Group controls
 
 - Owner @bot: `查看任务`, `检查连接`.

@@ -50,6 +50,10 @@ Each installation stores private group-scoped data, separate from global persona
 
 First join: bounded readable history, self-introduction and one concise request for missing role information. Later updates are event-driven from incoming introductions, corrections, membership changes and explicit owner settings. No periodic role polling. Store only relevant role facts, not indiscriminate group transcripts. A person can correct their own role; uncertain third-party claims remain unconfirmed. Bot/person linkage must be verified through the actual platform and owner pairing, not bot prose. Do not assume open_id is portable between applications.
 
+## Group announcement lifecycle
+
+Read the current docx announcement on startup before the introduction-once guard, and on subscribed bot-added events for the bound group. Refresh before actual jobs after a 60-second TTL, with single-flight reads, timeout and failure backoff; no idle polling or inference triggered by announcement changes. Store text, revision, provenance, read/attempt timestamps and error per app/group. Never replace complete memory with partial, malformed or concurrent-version reads. Successful empty content clears stale text; failures preserve the last good snapshot explicitly marked stale. Include the current snapshot in every conversation and legacy task prompt, including existing sessions. Announcement role descriptions are not verified identity mappings, bot ownership or machine permissions.
+
 ## Core milestone gates (maintainer-owned)
 
 1. Local Agent-guided install with minimal human choices/authentication; discovered installation and usage Skills match implementation.

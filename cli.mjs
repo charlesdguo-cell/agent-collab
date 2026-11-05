@@ -65,9 +65,11 @@ async function main(){
       const bot=await Feishu.discover(c.appId,c.appSecret);
       const roster=await f.bots(c.chatId);await f.history(c.chatId,{limit:1});
       checks.feishu={ready:bot.botId===c.botId&&roster.some(b=>b.bot_id===c.botId),identityMatched:bot.botId===c.botId,memberDirectory:true,historyReadable:true,eventDeliveryVerified:false};
+      try{const announcement=await f.announcement(c.chatId);checks.announcement={ready:true,revision:announcement.revision,characters:announcement.text.length,source:announcement.source};}
+      catch(e){checks.announcement={ready:false,error:e.message};}
     }catch{checks.feishu={ready:false,error:'请核对机器人身份、入群状态、群成员与历史读取权限；凭据未输出'};}
     const s=db();checks.uncertain=s.one("SELECT COUNT(*) n FROM jobs WHERE state='uncertain'").n;checks.failedDeliveries=s.one("SELECT COUNT(*) n FROM outbox WHERE state='failed'").n;checks.messageGap=s.one("SELECT value FROM meta WHERE key='sync:error'")?.value||null;s.close();
-    console.log(JSON.stringify(checks,null,2));if(!checks[c.runtime].authenticated || !checks.feishu.ready || (c.runtime==='codex'&&!checks.bridge.ready))process.exitCode=1;return;
+    console.log(JSON.stringify(checks,null,2));if(!checks[c.runtime].authenticated || !checks.feishu.ready || checks.announcement?.ready===false || (c.runtime==='codex'&&!checks.bridge.ready))process.exitCode=1;return;
   }
   if(cmd==='install-service'){readConfig();installService();return;}
   if(cmd==='task'){
@@ -96,7 +98,7 @@ async function main(){
     const f=new Feishu(c),service=new Service(s,f,c);service.persistConfig=saveConfig;service.api=await startTaskApi(s,c);
     const recovered=s.recover();if(recovered)console.log(`有 ${recovered} 个中断运行需要核对，未自动重试。`);
     await service.introduce();await service.flush();
-    await f.listen(e=>service.receive(e));
+    await f.listen(e=>service.receive(e),chat=>service.announcements.refresh({force:true}));
     await service.reconcile();
     const timer=setInterval(()=>service.tick().catch(()=>console.error('本轮处理失败，状态已保留；请检查本机诊断。')),2000);
     const stop=()=>{clearInterval(timer);for(const ctrl of service.active.values())ctrl.abort();f.ws?.close();service.api.server.close();unlock();process.exit(0);};
