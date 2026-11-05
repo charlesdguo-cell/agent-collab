@@ -27,3 +27,10 @@ if(m.id===91){if(m.result?.decision!=='decline')process.exit(7);send({method:'it
   assert.equal(r.completed,true);assert.match(r.text,/no update performed/);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+test('diagnostic Store opens existing state without chmod, migration or writable connection',async()=>{
+ const {Store}=await import('../lib/store.mjs');const {statSync,chmodSync}=await import('node:fs');
+ const dir=mkdtempSync(join(tmpdir(),'collab-readonly-'));const file=join(dir,'state.sqlite');
+ try{let s=new Store(file);s.run('INSERT INTO meta VALUES(?,?)','key','value');s.close();chmodSync(file,0o400);
+ const before=statSync(file);s=new Store(file,{readOnly:true});assert.equal(s.one('SELECT value FROM meta WHERE key=?','key').value,'value');assert.throws(()=>s.run('INSERT INTO meta VALUES(?,?)','other','no'));s.close();assert.equal(statSync(file).mode,before.mode);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});

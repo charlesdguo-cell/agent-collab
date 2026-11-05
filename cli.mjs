@@ -10,7 +10,7 @@ import {startTaskApi} from './lib/local-api.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url));
 const [cmd,...args]=process.argv.slice(2);
-const db=()=>new Store(join(home(),'state.sqlite'));
+const db=(options)=>new Store(join(home(),'state.sqlite'),options);
 async function stdin(){let s='';for await(const c of process.stdin){s+=c;if(s.length>65536)throw Error('输入过大');}return JSON.parse(s);}
 function lock(){
   mkdirSync(home(),{recursive:true,mode:0o700});const p=join(home(),'service.lock');
@@ -68,7 +68,7 @@ async function main(){
       try{const announcement=await f.announcement(c.chatId);checks.announcement={ready:true,revision:announcement.revision,characters:announcement.text.length,source:announcement.source};}
       catch(e){checks.announcement={ready:false,error:e.message};}
     }catch{checks.feishu={ready:false,error:'请核对机器人身份、入群状态、群成员与历史读取权限；凭据未输出'};}
-    const s=db();checks.uncertain=s.one("SELECT COUNT(*) n FROM jobs WHERE state='uncertain'").n;checks.failedDeliveries=s.one("SELECT COUNT(*) n FROM outbox WHERE state='failed'").n;checks.messageGap=s.one("SELECT value FROM meta WHERE key='sync:error'")?.value||null;s.close();
+    const s=db({readOnly:true});checks.uncertain=s.one("SELECT COUNT(*) n FROM jobs WHERE state='uncertain'").n;checks.failedDeliveries=s.one("SELECT COUNT(*) n FROM outbox WHERE state='failed'").n;checks.messageGap=s.one("SELECT value FROM meta WHERE key='sync:error'")?.value||null;s.close();
     console.log(JSON.stringify(checks,null,2));if(!checks[c.runtime].authenticated || !checks.feishu.ready || checks.announcement?.ready===false || (c.runtime==='codex'&&!checks.bridge.ready))process.exitCode=1;return;
   }
   if(cmd==='install-service'){readConfig();installService();return;}
