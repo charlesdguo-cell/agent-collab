@@ -3,9 +3,32 @@
 You are the installing Agent on the user's own computer. Complete the workflow, not just a download. No remote access to a maintainer's machine is required. Current supported acceptance target: macOS + Codex, Node.js 24+ and Python 3.9+.
 
 1. Read the user's project instructions. Confirm the actual computer and desired local project directory. Check existing `~/.local/share/agent-collab`, `~/.agents/skills/agent-collab`, `~/.agent-collab` and launchd service without printing secrets. Preserve existing installs; do not launch a duplicate bot or overwrite a configuration.
-2. Clone the PUBLIC repository without credentials into a new local checkout:
-   `git clone --branch v0.1.0-alpha.8 --depth 1 https://github.com/charlesdguo-cell/agent-collab.git`
-   Read its source before executing the installer. Record `git rev-parse HEAD`. Do not copy code from an unrelated local project or run a moving main branch instead of this tagged release.
+2. At installation time, query the PUBLIC GitHub Releases API and select the most recently **published, non-draft release**, including prereleases while this project is in preview. Do not hard-code a version from a chat message, an old guide, a cached checkout or an example. Clone that release's returned tag into a new directory without credentials, and record its release URL, tag and `git rev-parse HEAD`. If release discovery fails, report the concrete failure rather than silently installing a guessed or cached version. This live main-branch guide owns version selection; an older pinned INSTALL.md inside the selected release must not override it. After selection, keep the same resolved release throughout this installation rather than changing versions mid-task.
+
+   One credential-free way to resolve and clone the current release (Python 3 and Git required):
+
+   ```python
+   import json, re, subprocess, tempfile, urllib.request
+   request = urllib.request.Request(
+       "https://api.github.com/repos/charlesdguo-cell/agent-collab/releases?per_page=100",
+       headers={"Accept": "application/vnd.github+json", "User-Agent": "agent-collab-installer"})
+   with urllib.request.urlopen(request, timeout=30) as response:
+       releases = json.load(response)
+   published = [r for r in releases if not r.get("draft") and r.get("published_at")]
+   if not published:
+       raise SystemExit("No published release found; do not guess a version")
+   release = max(published, key=lambda r: r["published_at"])
+   tag = release["tag_name"]
+   if not re.fullmatch(r"v[0-9][A-Za-z0-9._+-]*", tag):
+       raise SystemExit("Unexpected release tag; inspect before cloning")
+   checkout = tempfile.mkdtemp(prefix="agent-collab-source-")
+   subprocess.run(["git", "-c", "credential.helper=", "clone", "--branch", tag,
+                   "--depth", "1", "https://github.com/charlesdguo-cell/agent-collab.git", checkout], check=True)
+   print("Source:", checkout, "Release:", release["html_url"], "Tag:", tag)
+   subprocess.run(["git", "-C", checkout, "rev-parse", "HEAD"], check=True)
+   ```
+
+   Read the selected source before executing its installer. Do not copy code from an unrelated local project or install a moving development branch in place of a published release.
 3. Check `node --version`, `npm --version`, `python3 --version`, `codex --version`, and `codex login status`. Reuse valid existing Codex login. If Node 24+ is missing, install an official Node distribution for the actual OS/architecture and verify its published SHA-256 first. Never disable TLS or system security. If tooling cannot be installed under the Agent's permissions, report the precise missing prerequisite.
 4. In the checkout run `python3 scripts/install.py`. It installs a versioned runtime and a stable Skill link, but DOES NOT configure credentials, start the bot, or claim acceptance. Existing differing installations are preserved rather than overwritten.
 5. Read the installed `~/.agents/skills/agent-collab/SKILL.md` and continue its setup and automatic self-check steps in this same session. If a fresh Agent session is needed for Skill discovery, it can still read the file directly now.

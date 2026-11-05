@@ -6,7 +6,7 @@
 
 交给自己电脑上的 Codex：
 
-> 请读取 https://github.com/charlesdguo-cell/agent-collab/blob/main/INSTALL.md ，完成本机 Agent Collab 安装、机器人配置和自动自检，并确认 agent-collab 与 team-consult 两个 Skill 可读；不要停在下载阶段。
+> 请读取 https://github.com/charlesdguo-cell/agent-collab/blob/main/INSTALL.md ，安装时查询公开仓库最新已发布版本（含预览版，不写死版本号），完成本机 Agent Collab 安装、机器人配置和自动自检，并确认 agent-collab 与 team-consult 两个 Skill 可读；不要停在下载阶段。
 
 公开仓库无需 GitHub 账号。安装者提供专属机器人的 App ID、凭据、群和项目；本机 Agent 主动提供创建机器人和权限配置帮助。本人登录、私聊配对等必要交互在本机完成。发布验收由维护者负责，不交给安装者跑测试脚本。
 
