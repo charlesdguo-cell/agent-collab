@@ -3,7 +3,7 @@ from pathlib import Path
 SCRIPT=Path(__file__).resolve().parents[1]/'scripts/upgrade.py'
 class Upgrade(unittest.TestCase):
  def setUp(self):
-  self.tmp=tempfile.TemporaryDirectory();self.h=Path(self.tmp.name);self.root=self.h/'runtime';self.old=self.root/'releases/old';self.new=self.root/'releases/new'
+  self.tmp=tempfile.TemporaryDirectory();self.h=Path(self.tmp.name).resolve();self.root=self.h/'runtime';self.old=self.root/'releases/old';self.new=self.root/'releases/new'
   for r in [self.old,self.new]:r.mkdir(parents=True);(r/'cli.mjs').write_text('test')
   (self.new/'install-receipt.json').write_text(json.dumps({'version':'new','files':{'cli.mjs':hashlib.sha256(b'test').hexdigest()}}));(self.root/'current').symlink_to(self.old)
   self.state=self.h/'state';self.state.mkdir();(self.state/'config.json').write_text('{"owner":"ou_owner"}');(self.state/'service.lock').write_text('99999999')

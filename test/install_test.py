@@ -19,6 +19,10 @@ class Installation(unittest.TestCase):
   self.assertNotEqual(self.run_install().returncode,0)
  def test_stage_only_does_not_activate_or_start_service(self):
   r=self.run_install(args=['--stage-only']);self.assertEqual(r.returncode,0,r.stderr);self.assertFalse((self.root/'current').exists());self.assertFalse(self.link.exists());self.assertEqual(json.loads(r.stdout)['activation'],'not-requested')
+ def test_repeated_install_through_root_alias_preserves_skill_links(self):
+  self.root.mkdir();alias=self.base/'runtime-alias';alias.symlink_to(self.root,target_is_directory=True);self.root=alias
+  first=self.run_install();self.assertEqual(first.returncode,0,first.stderr);target=os.readlink(self.link)
+  repeated=self.run_install();self.assertEqual(repeated.returncode,0,repeated.stderr);self.assertEqual(os.readlink(self.link),target)
  def test_failed_dependency_install_can_retry(self):
   self.assertNotEqual(self.run_install(FAKE_NPM_EXIT='1').returncode,0)
   self.assertFalse(self.link.exists());self.assertEqual(list((self.root/'releases').iterdir()),[])

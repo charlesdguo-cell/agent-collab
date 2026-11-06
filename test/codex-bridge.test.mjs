@@ -34,3 +34,28 @@ test('diagnostic Store opens existing state without chmod, migration or writable
  const before=statSync(file);s=new Store(file,{readOnly:true});assert.equal(s.one('SELECT value FROM meta WHERE key=?','key').value,'value');assert.throws(()=>s.run('INSERT INTO meta VALUES(?,?)','other','no'));s.close();assert.equal(statSync(file).mode,before.mode);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+test('new and resumed autonomy turns use the reply/next protocol without semantic confirmations',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'collab-autonomy-protocol-'));
+ try {
+  const bin=join(dir,'fake-codex');writeFileSync(bin,`#!${process.execPath}
+import('node:readline').then(({createInterface})=>createInterface({input:process.stdin}).on('line',line=>{
+const m=JSON.parse(line),send=x=>console.log(JSON.stringify(x));
+if(m.method==='initialize')send({id:m.id,result:{}});
+if(['thread/start','thread/resume'].includes(m.method)){
+ if(m.params.sandbox!=='danger-full-access'||m.params.approvalPolicy!=='on-request'||!m.params.developerInstructions.includes('已移除旧版'))process.exit(7);
+ if(m.method==='thread/resume'&&m.params.threadId!=='original-thread')process.exit(8);
+ send({id:m.id,result:{thread:{id:'original-thread'}}});
+}
+if(m.method==='turn/start'){
+ if(m.params.threadId!=='original-thread'||m.params.outputSchema.properties.confirmation||m.params.outputSchema.required.includes('confirmation'))process.exit(9);
+ send({id:m.id,result:{}});
+ send({method:'item/completed',params:{threadId:'original-thread',item:{type:'agentMessage',text:JSON.stringify({reply:'Completed',next:null})}}});
+ send({method:'turn/completed',params:{threadId:'original-thread',turn:{status:'completed'}}});
+}
+}));`,{mode:0o755});
+  for(const session of [undefined,'original-thread']){
+   const result=await runConversation({runtime:'codex',project:dir,session},'conversation','Continue authorized work',{config:{codexBin:bin,executionMode:'owner-autonomy',timeoutMs:5000}});
+   assert.equal(result.session,'original-thread');assert.equal(result.completed,true);assert.deepEqual(JSON.parse(result.text),{reply:'Completed',next:null});assert.deepEqual(result.clientRequests,[]);
+  }
+ } finally{rmSync(dir,{recursive:true,force:true});}
+});

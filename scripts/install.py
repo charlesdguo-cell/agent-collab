@@ -2,7 +2,7 @@
 """Install one immutable local runtime and its discoverable Skill; never start a bot."""
 import argparse,hashlib,json,os,shutil,subprocess,tempfile
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--root',type=Path,default=Path.home()/'.local/share/agent-collab');p.add_argument('--skill-dir',type=Path,default=Path.home()/'.agents/skills/agent-collab');p.add_argument('--activate-upgrade',action='store_true');p.add_argument('--stage-only',action='store_true');p.add_argument('--state-dir',type=Path,default=Path(os.environ.get('AGENT_COLLAB_HOME',str(Path.home()/'.agent-collab'))));p.add_argument('--service-label',default=os.environ.get('AGENT_COLLAB_SERVICE_LABEL','ai.ikigen.agent-collab'));p.add_argument('--enable-owner-autonomy',action='store_true',help='Explicit local-owner authorization for routine host operations, high risk confirmed privately');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--root',type=Path,default=Path.home()/'.local/share/agent-collab');p.add_argument('--skill-dir',type=Path,default=Path.home()/'.agents/skills/agent-collab');p.add_argument('--activate-upgrade',action='store_true');p.add_argument('--stage-only',action='store_true');p.add_argument('--state-dir',type=Path,default=Path(os.environ.get('AGENT_COLLAB_HOME',str(Path.home()/'.agent-collab'))));p.add_argument('--service-label',default=os.environ.get('AGENT_COLLAB_SERVICE_LABEL','ai.ikigen.agent-collab'));p.add_argument('--enable-owner-autonomy',action='store_true',help='Explicit local-owner authorization for autonomous host operations');a=p.parse_args()
 src=Path(__file__).resolve().parents[1];version=json.loads((src/'package.json').read_text())['version']
 node=shutil.which('node');npm=shutil.which('npm')
 if not node or not npm:raise SystemExit('Node.js 24+ and npm are required; install them on this computer first.')
@@ -22,9 +22,9 @@ for dest,target in links.items():
 if current.exists() and not current.is_symlink():raise SystemExit('Unmanaged current path preserved')
 service=Path.home()/'Library/LaunchAgents'/(a.service_label+'.plist')
 managed_upgrade=bool(service.exists() and a.activate_upgrade)
-if current.is_symlink() and current.resolve()!=release and not a.stage_only:
+if current.is_symlink() and current.resolve()!=release.resolve() and not a.stage_only:
  if not a.activate_upgrade:raise SystemExit('Existing active version preserved. Read upgrade instructions before using --activate-upgrade.')
- if current.resolve().parent!=root/'releases':raise SystemExit('Unmanaged current link preserved')
+ if current.resolve().parent!=(root/'releases').resolve():raise SystemExit('Unmanaged current link preserved')
 if release.exists():
  receipt=release/'install-receipt.json'
  if not receipt.exists() or json.loads(receipt.read_text())['files']!=files:raise SystemExit('Incomplete or different existing release preserved; inspect it before retrying')
@@ -49,7 +49,7 @@ if a.stage_only or managed_upgrade:
   with open(log,'ab') as out:subprocess.Popen(args,stdin=subprocess.DEVNULL,stdout=out,stderr=out,start_new_session=True)
  print(json.dumps({'installed':True,'version':version,'activation':'queued-after-idle' if managed_upgrade and not a.stage_only else 'not-requested','runtime':str(release),'receipt':str(a.state_dir/'maintenance-status.json')}))
  raise SystemExit(0)
-if not current.is_symlink() or current.resolve()!=release:
+if not current.is_symlink() or current.resolve()!=release.resolve():
  nextlink=root/'current.next'
  if nextlink.exists() or nextlink.is_symlink():raise SystemExit('Existing current.next preserved; inspect interrupted activation')
  nextlink.symlink_to(release,target_is_directory=True);os.replace(nextlink,current)
