@@ -9,14 +9,16 @@ class Installation(unittest.TestCase):
   self.env={**os.environ,'PATH':str(self.bin)+os.pathsep+os.environ['PATH']}
   self.root=self.base/'runtime';self.link=self.base/'skills/agent-collab'
  def tearDown(self):self.tmp.cleanup()
- def run_install(self,**env):
-  return subprocess.run(['python3',str(SCRIPT),'--root',str(self.root),'--skill-dir',str(self.link)],env={**self.env,**env},capture_output=True,text=True)
+ def run_install(self,args=None,**env):
+  return subprocess.run(['python3',str(SCRIPT),'--root',str(self.root),'--skill-dir',str(self.link)]+(args or []),env={**self.env,**env},capture_output=True,text=True)
  def test_both_skills_repeat_and_tamper(self):
   r=self.run_install();self.assertEqual(r.returncode,0,r.stderr)
   self.assertTrue(self.link.is_symlink());self.assertTrue((self.link.parent/'team-consult').is_symlink())
   self.assertEqual(self.run_install().returncode,0)
   (self.root/'current/cli.mjs').write_text('changed')
   self.assertNotEqual(self.run_install().returncode,0)
+ def test_stage_only_does_not_activate_or_start_service(self):
+  r=self.run_install(args=['--stage-only']);self.assertEqual(r.returncode,0,r.stderr);self.assertFalse((self.root/'current').exists());self.assertFalse(self.link.exists());self.assertEqual(json.loads(r.stdout)['activation'],'not-requested')
  def test_failed_dependency_install_can_retry(self):
   self.assertNotEqual(self.run_install(FAKE_NPM_EXIT='1').returncode,0)
   self.assertFalse(self.link.exists());self.assertEqual(list((self.root/'releases').iterdir()),[])

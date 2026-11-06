@@ -96,7 +96,7 @@ async function main(){
     const c=readConfig(),unlock=lock(),s=db();
     const {Feishu}=await import('./lib/feishu.mjs'),{Service}=await import('./lib/service.mjs');
     const f=new Feishu(c),service=new Service(s,f,c);service.persistConfig=saveConfig;service.api=await startTaskApi(s,c);
-    const recovered=s.recover();if(recovered)console.log(`有 ${recovered} 个中断运行需要核对，未自动重试。`);
+    service.confirmations.interruptNative();const recovered=s.recover();if(recovered)console.log(`有 ${recovered} 个中断运行需要核对，未自动重试。`);
     await service.introduce();await service.flush();
     await f.listen(e=>service.receive(e),chat=>service.announcements.refresh({force:true}));
     await service.reconcile();
