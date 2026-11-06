@@ -63,3 +63,12 @@ Read the current docx announcement on startup before the introduction-once guard
 5. Group role memory is initially seeded and passively corrected, preserving source/identity boundaries.
 
 Do not mark the tool stable until these core gates have real evidence. Upgrade improvements, complex recovery and installer-performed release QA are not prerequisites for this milestone.
+
+
+## Result delivery after the dialogue deadline
+
+The ten-minute deadline bounds automatic requests, not research duration or final-result acceptance. An authenticated terminal reply to the exact outstanding request may arrive after the deadline/turn budget and resumes its original task/session once. Further expired questions are retained as `awaiting_final` without scheduling inference; the outstanding request stays correlated. Topic/private-channel, peer and in-reply-to checks still apply, and terminal input cannot open a fresh exchange. Cancellation, pause, uncertain execution and failure never auto-resume.
+
+A terminal response closes the exchange atomically with queuing the continuation. A duplicate message or another final copy cannot run it again. Private replay includes `awaiting_final` exchanges, including after restart. Previously closed exchanges from older versions are not reopened: they may have been intentionally completed or cancelled. Recover their saved evidence under explicit task ownership, not by replaying execution.
+
+`topic status` exposes `activeJobs` and `awaitingResults` (including `deadlineExpired`), independently of stored task state. An empty active queue is not “still researching”; a finished inference is not proof of the parent deliverable. The originating coordinator owns the original deliverable, reuses received findings, checks the artifact and delivery receipt, and reports a real blocker if continuation fails. An unmanaged terminal needs an explicit managed handoff; installing the bridge cannot grant it automatic wakeup.

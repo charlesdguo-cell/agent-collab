@@ -103,3 +103,36 @@ test('failed local root delivery never triggers model or creates a fictional top
  const a=svc.conversations.localStart({requestId:'offline',request:'test'});await svc.tick();await svc.tick();
  const result=svc.conversations.localStatus(a.task);assert.equal(result.root,null);assert.equal(result.delivery.state,'failed');assert.equal(result.jobs.length,0);s.close();
 });
+
+test('final arriving beyond the ten-minute deadline resumes original session exactly once',async()=>{
+ let round=0;const sessions=[];const {s,svc}=fixture(async t=>{sessions.push(t.session);return {session:'persistent',text:JSON.stringify(++round===1?{reply:'',next:{recipient:'ou_peer',body:'Research this'}}:{reply:'Research report delivered',next:null})};});
+ const started=svc.receive(event('research','late-root'));await svc.tick();
+ const w=decode(s.all('SELECT * FROM outbox').at(-1).body).envelope;
+ s.run('UPDATE exchanges SET deadline=? WHERE id=?',Date.now()-1,w.exchange);
+ const reply=event(wire(w.exchange,'late-final','close',{inReplyTo:w.message,turn:8,expectsReply:false,deadline:Date.now()-1}),'late-final-event',{root:'late-root',sender:'ou_peer',senderType:'app'});
+ assert.ok(svc.receive(reply).queued);assert.ok(svc.receive(reply).duplicate);
+ assert.equal(svc.receive({...reply,id:'late-final-copy'}).ignored,'closed-or-mismatched-exchange');
+ await svc.tick();assert.equal(round,2);assert.deepEqual(sessions,[null,'persistent']);
+ assert.equal(s.all('SELECT * FROM jobs').length,2);assert.equal(s.task(started.task).session,'persistent');
+ const final=s.all('SELECT * FROM outbox').at(-1);assert.equal(final.body,'Research report delivered');assert.equal(final.root,'late-root');s.close();
+});
+test('expired follow-up cannot continue dialogue but a later exact final is still accepted',async()=>{
+ const {s,svc}=fixture(async()=>({session:'s',text:JSON.stringify({reply:'',next:{recipient:'ou_peer',body:'Research'}})}));
+ svc.receive(event('ask','root'));await svc.tick();const w=decode(s.all('SELECT * FROM outbox').at(-1).body).envelope;
+ s.run('UPDATE exchanges SET deadline=? WHERE id=?',Date.now()-1,w.exchange);
+ const make=(id,extra={})=>event(wire(w.exchange,id,'reply',{inReplyTo:w.message,turn:w.turn+1,deadline:Date.now()-1,...extra}),id,{root:'root',sender:'ou_peer',senderType:'app'});
+ assert.equal(svc.receive(make('more')).reason,'deadline-awaiting-final');assert.equal(s.all('SELECT * FROM jobs').length,1);
+ assert.equal(s.one('SELECT state FROM exchanges WHERE id=?',w.exchange).state,'awaiting_final');
+ assert.equal(svc.receive({...make('wrong'),sender:'ou_other'}).ignored,'closed-or-mismatched-exchange');
+ assert.equal(svc.receive(make('stale',{inReplyTo:'not-the-request',expectsReply:false})).ignored,'unmatched-reply');
+ assert.ok(svc.receive(make('final',{kind:'close',expectsReply:false})).queued);s.close();
+});
+test('late finals never reactivate cancelled, paused, uncertain or failed tasks',async()=>{
+ for(const state of ['cancelled','paused','uncertain','failed']){
+  const {s,svc}=fixture(async()=>({session:'s',text:JSON.stringify({reply:'',next:{recipient:'ou_peer',body:'Research'}})}));
+  const r=svc.receive(event('ask','root'));await svc.tick();const w=decode(s.all('SELECT * FROM outbox').at(-1).body).envelope;
+  s.run('UPDATE exchanges SET deadline=? WHERE id=?',Date.now()-1,w.exchange);s.run('UPDATE tasks SET state=? WHERE id=?',state,r.task);
+  const received=svc.receive(event(wire(w.exchange,'final','close',{inReplyTo:w.message,turn:w.turn+1,expectsReply:false,deadline:Date.now()-1}),'final',{root:'root',sender:'ou_peer',senderType:'app'}));
+  assert.equal(received.blocked,state);assert.equal(s.all('SELECT * FROM jobs').length,1);assert.equal(s.task(r.task).state,state);s.close();
+ }
+});

@@ -115,3 +115,18 @@ test('nested clarification closes third party then resumes every waiting ancesto
  await svc.tick();const aFinal=decode(s.all('SELECT * FROM outbox').at(-1).body).envelope;assert.equal(aFinal.to,'ou_a');assert.equal(aFinal.exchange,'parent-a');
  assert.equal(round,4);assert.ok(s.all('SELECT state FROM exchanges').every(x=>x.state==='closed'));s.close();
 });
+
+test('late private final survives restart and resumes expired parent without another question',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'collab-late-')),path=join(dir,'state.sqlite');let s,svc;
+ try{
+  ({s,svc}=setup(async()=>({session:'persistent',text:JSON.stringify({reply:'',next:{recipient:'ou_person',body:'Research',channel:'private'}})}),path));
+  svc.receive(event(wire('parent','m1'),'request',{root:'root',sender:'ou_peer',senderType:'app'}));await svc.tick();
+  const d=s.one('SELECT * FROM conversation_deliveries');s.run("UPDATE exchanges SET deadline=?,state='awaiting_final' WHERE id<>?",Date.now()-1,'parent');s.run('UPDATE exchanges SET deadline=? WHERE id=?',Date.now()-1,'parent');s.close();
+  let calls=0;({s,svc}=setup(async t=>{calls++;assert.equal(t.session,'persistent');return {session:t.session,text:JSON.stringify({reply:'Complete researched answer',next:null})};},path));
+  const response=event('Research findings','late-private',{chat:'oc_dm',chatType:'p2p',parent:d.remote,root:null,sender:'ou_person',mentioned:false});
+  assert.ok(svc.receive(response).queued);await svc.tick();assert.equal(calls,1);
+  const out=s.all('SELECT * FROM outbox').at(-1),envelope=decode(out.body).envelope;
+  assert.equal(out.root,'root');assert.equal(envelope.exchange,'parent');assert.equal(envelope.expectsReply,false);assert.match(out.body,/Complete researched answer/);
+  assert.equal(svc.receive({...response,id:'duplicate-copy'}).ignored,'unmatched-private-reply');s.close();s=null;
+ }finally{s?.close();rmSync(dir,{recursive:true,force:true});}
+});
