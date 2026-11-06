@@ -136,3 +136,18 @@ test('late finals never reactivate cancelled, paused, uncertain or failed tasks'
   assert.equal(received.blocked,state);assert.equal(s.all('SELECT * FROM jobs').length,1);assert.equal(s.task(r.task).state,state);s.close();
  }
 });
+
+test('history app_id alias of an already recorded bot result cannot poison replay checkpoint',async()=>{
+ const {s,svc}=fixture();svc.receive(event(wire('x','m'),'already-recorded',{sender:'ou_peer',senderType:'app',root:'root'}));await svc.tick();
+ s.run("INSERT OR REPLACE INTO meta VALUES('sync:error','old identity gap')");
+ svc.transport.thread=async()=>null;
+ svc.transport.replay=async()=>({complete:true,items:[{message_id:'already-recorded',sender:{id:'cli_peer'}}]});
+ svc.transport.fromHistory=()=>{throw Error('Known platform id must deduplicate before identity resolution');};
+ const jobs=s.all('SELECT * FROM jobs').length;await svc.reconcile();
+ assert.equal(s.one("SELECT value FROM meta WHERE key='sync:error'"),undefined);assert.equal(s.all('SELECT * FROM jobs').length,jobs);s.close();
+});
+test('unseen history app_id still blocks replay instead of guessing bot identity',async()=>{
+ const {s,svc}=fixture();s.run("UPDATE meta SET value='1' WHERE key='sync:group'");svc.transport.thread=async()=>null;
+ svc.transport.replay=async()=>({complete:true,items:[{message_id:'unseen'}]});svc.transport.fromHistory=()=>event(wire('x','m'),'unseen',{sender:'cli_peer',senderType:'app'});
+ await svc.reconcile();assert.match(s.one("SELECT value FROM meta WHERE key='sync:error'").value,/历史 bot/);assert.equal(s.one("SELECT value FROM meta WHERE key='sync:group'").value,'1');assert.equal(s.all('SELECT * FROM jobs').length,0);s.close();
+});
