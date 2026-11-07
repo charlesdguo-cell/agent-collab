@@ -44,3 +44,8 @@ test('hung WebSocket startup cannot block periodic replay or jobs; shutdown stop
  try{await new Promise(r=>setTimeout(r,40));assert.ok(ticks>=2);assert.ok(replays>=2);}finally{stop();}
  const before=[ticks,replays];await new Promise(r=>setTimeout(r,20));assert.deepEqual([ticks,replays],before);
 });
+test('history batch enrichment encodes repeated message_ids, never comma joined',async()=>{
+ const f=new Feishu(cfg);
+ f.client={im:{message:{list:async()=>({code:0,data:{items:['m1','m2'].map(message_id=>({message_id,sender:{id:'cli_peer',id_type:'app_id',sender_type:'app'}}))}})}},request:async({url,params})=>{assert.equal(params,undefined);const q=new URL(url,'https://example.test').searchParams;assert.deepEqual(q.getAll('message_ids'),['m1','m2']);return {code:0,data:{items:['m1','m2'].map(message_id=>({message_id,sender:{id:'cli_peer',open_bot_id:'ou_peer'}}))}};}};
+ const r=await f.replay('chat','chat',1);assert.ok(r.items.every(m=>m.sender.open_bot_id==='ou_peer'));
+});

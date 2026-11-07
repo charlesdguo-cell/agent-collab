@@ -1,4 +1,4 @@
-# Message recovery (alpha.17)
+# Message recovery (alpha.18)
 
 - Live explicitly mentioned plain bot text is a one-way notice. It is recorded and queued once, with the original topic and source identity. A notice can produce a substantive unmentioned result or remain silent; it cannot initiate automatic bot-to-bot exchanges. Receipt chatter is not an acceptance test.
 - Existing request/reply envelopes keep exact peer, request, deadline and terminal rules. Unknown identities are not inferred from display names. Message history sender app IDs are enriched from the same receiver application's platform `messages/mget` record, matched by message ID and sender app ID.
