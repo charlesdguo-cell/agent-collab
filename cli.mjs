@@ -101,7 +101,8 @@ async function main(){
     await f.listen(e=>service.receive(e),chat=>service.announcements.refresh({force:true}));
     await service.reconcile();
     const timer=setInterval(()=>service.tick().catch(()=>console.error('本轮处理失败，状态已保留；请检查本机诊断。')),2000);
-    const stop=()=>{clearInterval(timer);for(const ctrl of service.active.values())ctrl.abort();f.ws?.close();service.api.server.close();unlock();process.exit(0);};
+    const syncTimer=setInterval(()=>service.reconcile().catch(()=>console.error('消息补取失败，检查点已保留。')),30000);
+    const stop=()=>{clearInterval(syncTimer);clearInterval(timer);for(const ctrl of service.active.values())ctrl.abort();f.ws?.close();service.api.server.close();unlock();process.exit(0);};
     process.on('SIGINT',stop);process.on('SIGTERM',stop);process.on('exit',unlock);
     console.log('协作服务已启动；请在指定群内验证消息闭环。');return;
   }

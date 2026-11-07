@@ -33,7 +33,7 @@ test('AI replies require exact outstanding request and authenticated peer',async
  assert.equal(svc.receive(response).closed,true);assert.equal(s.all('SELECT * FROM jobs').length,2);assert.equal(JSON.parse(s.all('SELECT * FROM jobs').at(-1).input).terminal,true);assert.equal(svc.receive({...response,id:'again'}).ignored,'closed-or-mismatched-exchange');s.close();
 });
 test('receipts, unaddressed bots, own echo, and malformed metadata never trigger inference',()=>{
- const {s,svc}=fixture();for(const e of [event(wire('x','m','receipt'),'a',{sender:'ou_peer',senderType:'app'}),event('hello','b',{sender:'ou_peer',senderType:'app'}),event(wire('x','m'),'c',{sender:'ou_bot',senderType:'app'}),event('bad\n[agent-collab:v1]{}','d',{sender:'ou_peer',senderType:'app'})])assert.ok(svc.receive(e).ignored);assert.equal(s.all('SELECT * FROM jobs').length,0);s.close();
+ const {s,svc}=fixture();for(const e of [event(wire('x','m','receipt'),'a',{sender:'ou_peer',senderType:'app'}),event('hello','b',{sender:'ou_peer',senderType:'app',mentioned:false}),event(wire('x','m'),'c',{sender:'ou_bot',senderType:'app'}),event('bad\n[agent-collab:v1]{}','d',{sender:'ou_peer',senderType:'app'})])assert.ok(svc.receive(e).ignored);assert.equal(s.all('SELECT * FROM jobs').length,0);s.close();
 });
 test('group role updates keep source and group isolation; role text is not owner authority',()=>{
  const {s,svc}=fixture();svc.receive(event('/role frontend','role',{sender:'ou_peer'}));svc.receive(event('/role backend','role2',{sender:'ou_peer'}));

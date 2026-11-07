@@ -1,0 +1,10 @@
+# Message recovery (alpha.16)
+
+- Live explicitly mentioned plain bot text is a one-way notice. It is recorded and queued once, with the original topic and source identity. A notice can produce a substantive unmentioned result or remain silent; it cannot initiate automatic bot-to-bot exchanges. Receipt chatter is not an acceptance test.
+- Existing request/reply envelopes keep exact peer, request, deadline and terminal rules. Unknown identities are not inferred from display names. Message history sender app IDs are enriched from the same receiver application's platform `messages/mget` record, matched by message ID and sender app ID.
+- The service polls history every 30 seconds, in addition to startup reconciliation. Overlapping runs are skipped. Failed sources retain their checkpoint; one failing source does not block other tracked topics. Checkpoints advance only after complete pagination.
+- Group history topic roots are persisted and their replies are replayed even if the root never mentioned this bot. Existing task/topic bindings and stopped task states are preserved. Restart/repeated delivery cannot duplicate a queued platform message.
+- This is durable local processing, not proof that another computer is online, upgraded or has finished its model job. Doctor's `messageGap` reports reconciliation errors; a successful connection is not processing evidence. Check the original message ID, stored job and delivered substantive result separately.
+- Current limitations: only text events are normalized; edited messages already consumed are not treated as new requests; old untracked topics whose roots predate the stored group checkpoint are not rediscovered by a later reply alone. Failed/uncertain executions and permanently failed sends still require explicit reconciliation, not blind execution replay.
+
+Tests cover silent notices, duplicate delivery, loop prevention, authenticated history identity, new-topic offline catch-up, restart deduplication and independent source errors. These are simulations; live history and deployment verification are recorded privately by the maintainer.
