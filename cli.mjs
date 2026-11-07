@@ -97,14 +97,11 @@ async function main(){
     const {Feishu}=await import('./lib/feishu.mjs'),{Service}=await import('./lib/service.mjs');
     const f=new Feishu(c),service=new Service(s,f,c);service.persistConfig=saveConfig;service.api=await startTaskApi(s,c);
     service.confirmations.interruptNative();const recovered=s.recover();if(recovered)console.log(`有 ${recovered} 个中断运行需要核对，未自动重试。`);
-    await service.introduce();await service.flush();
-    await f.listen(e=>service.receive(e),chat=>service.announcements.refresh({force:true}));
-    await service.reconcile();
-    const timer=setInterval(()=>service.tick().catch(()=>console.error('本轮处理失败，状态已保留；请检查本机诊断。')),2000);
-    const syncTimer=setInterval(()=>service.reconcile().catch(()=>console.error('消息补取失败，检查点已保留。')),30000);
-    const stop=()=>{clearInterval(syncTimer);clearInterval(timer);for(const ctrl of service.active.values())ctrl.abort();f.ws?.close();service.api.server.close();unlock();process.exit(0);};
+    const {startBackground}=await import('./lib/background.mjs');
+    const stopBackground=startBackground(service,f,{onError:name=>console.error(`后台 ${name} 失败，状态已保留；请检查本机诊断。`)});
+    const stop=()=>{stopBackground();for(const ctrl of service.active.values())ctrl.abort();f.ws?.close();service.api.server.close();unlock();process.exit(0);};
     process.on('SIGINT',stop);process.on('SIGTERM',stop);process.on('exit',unlock);
-    console.log('协作服务已启动；请在指定群内验证消息闭环。');return;
+    console.log('协作调度已启动；长连接与历史补收独立运行，连接状态以实际回执为准。');return;
   }
   console.log('Agent Collab alpha\nsetup · 本机配置向导\ndoctor · 检查环境\ninstall-service · macOS 后台自启动\nstart · 前台运行\ntopic start/reply/status/members · 本机主动协作\ntask new/list · 旧版任务\nconsult open/revise/status · 供受管 Agent 使用');
 }

@@ -37,3 +37,10 @@ test('one failed source does not prevent another topic from catching up',async()
  const svc=new Service(s,transport,cfg);s.run('INSERT INTO sync_threads VALUES(?,?,?,?,?)',cfg.appId,cfg.chatId,'root','thread',Date.now()-100000);
  await svc.reconcile();assert.equal(s.all('SELECT * FROM jobs').length,1);assert.match(s.one("SELECT value FROM meta WHERE key='sync:error'").value,/group offline/);s.close();
 });
+test('hung WebSocket startup cannot block periodic replay or jobs; shutdown stops timers',async()=>{
+ const {startBackground}=await import('../lib/background.mjs');let ticks=0,replays=0;
+ const service={introduce:async()=>{},flush:async()=>{},tick:async()=>{ticks++;},reconcile:async()=>{replays++;}};
+ const stop=startBackground(service,{listen:()=>new Promise(()=>{})},{processInterval:5,syncInterval:5});
+ try{await new Promise(r=>setTimeout(r,40));assert.ok(ticks>=2);assert.ok(replays>=2);}finally{stop();}
+ const before=[ticks,replays];await new Promise(r=>setTimeout(r,20));assert.deepEqual([ticks,replays],before);
+});
