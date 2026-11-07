@@ -9,3 +9,7 @@
 - Current limitations: only text events are normalized; edited messages already consumed are not treated as new requests; old untracked topics whose roots predate the stored group checkpoint are not rediscovered by a later reply alone. Failed/uncertain executions and permanently failed sends still require explicit reconciliation, not blind execution replay.
 
 Tests cover silent notices, duplicate delivery, loop prevention, authenticated history identity, new-topic offline catch-up, restart deduplication and independent source errors. These are simulations; live history and deployment verification are recorded privately by the maintainer.
+
+## Exchange lifetime (alpha.19)
+
+New structured collaboration requests expire 30 days (one fixed collaboration month) after creation, not ten minutes. Receiver deadline bounds and child exchanges use the same lifetime; children inherit the parent deadline rather than extending it. Existing on-disk exchanges and previously sent envelopes retain their original deadline; upgrading does not resurrect expired/closed requests or replay consumed messages. The ten-minute plain-notice deduplication window and pairing-code lifetime are unrelated and unchanged.

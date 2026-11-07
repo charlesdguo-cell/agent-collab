@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../lib/store.mjs';
 import {Service} from '../lib/service.mjs';
-import {decode} from '../lib/conversations.mjs';
+import {decode,EXCHANGE_TTL_MS} from '../lib/conversations.mjs';
 const cfg={appId:'cli_test',chatId:'oc_test',owner:'ou_owner',botId:'ou_bot',project:'/tmp',runtime:'codex'};
 const event=(text,id,extra={})=>({app:cfg.appId,chat:cfg.chatId,id,sender:'ou_owner',senderType:'user',text,mentioned:true,...extra});
 function fixture(runner){const s=new Store(':memory:');let n=0;const svc=new Service(s,{send:async()=>`om_out_${++n}`},cfg,runner|| (async t=>({session:t.session||'s-'+t.id,text:JSON.stringify({reply:'answer',next:null})})));return {s,svc};}
@@ -104,7 +104,7 @@ test('failed local root delivery never triggers model or creates a fictional top
  const result=svc.conversations.localStatus(a.task);assert.equal(result.root,null);assert.equal(result.delivery.state,'failed');assert.equal(result.jobs.length,0);s.close();
 });
 
-test('final arriving beyond the ten-minute deadline resumes original session exactly once',async()=>{
+test('final arriving beyond the exchange deadline resumes original session exactly once',async()=>{
  let round=0;const sessions=[];const {s,svc}=fixture(async t=>{sessions.push(t.session);return {session:'persistent',text:JSON.stringify(++round===1?{reply:'',next:{recipient:'ou_peer',body:'Research this'}}:{reply:'Research report delivered',next:null})};});
  const started=svc.receive(event('research','late-root'));await svc.tick();
  const w=decode(s.all('SELECT * FROM outbox').at(-1).body).envelope;
@@ -151,3 +151,18 @@ test('unseen history app_id still blocks replay instead of guessing bot identity
  svc.transport.replay=async()=>({complete:true,items:[{message_id:'unseen'}]});svc.transport.fromHistory=()=>event(wire('x','m'),'unseen',{sender:'cli_peer',senderType:'app'});
  await svc.reconcile();assert.match(s.one("SELECT value FROM meta WHERE key='sync:error'").value,/历史 bot/);assert.equal(s.one("SELECT value FROM meta WHERE key='sync:group'").value,'1');assert.equal(s.all('SELECT * FROM jobs').length,0);s.close();
 });
+
+ test('new requests last 30 days; half-day offline requests and long-deadline replies are accepted',async()=>{
+ const {s,svc}=fixture(async()=>({session:'month-session',text:JSON.stringify({reply:'',next:{recipient:'ou_peer',body:'review'}})}));
+ const before=Date.now();svc.receive(event('ask','month-root'));await svc.tick();
+ const w=decode(s.all('SELECT * FROM outbox').at(-1).body).envelope;
+ assert.equal(EXCHANGE_TTL_MS,30*24*60*60*1000);
+ assert.ok(w.deadline>=before+EXCHANGE_TTL_MS&&w.deadline<=Date.now()+EXCHANGE_TTL_MS);
+ const response=event(wire(w.exchange,'month-response','reply',{inReplyTo:w.message,turn:w.turn+1,deadline:w.deadline}),'month-response',{root:'month-root',sender:'ou_peer',senderType:'app'});
+ assert.ok(svc.receive(response).queued);
+ const remaining=EXCHANGE_TTL_MS-12*60*60*1000;
+ assert.ok(svc.receive(event(wire('offline','offline-request','request',{deadline:Date.now()+remaining}),'offline-request',{root:'offline-root',sender:'ou_peer',senderType:'app'})).queued);
+ assert.ok(s.one("SELECT deadline FROM exchanges WHERE id='offline'").deadline>Date.now()+remaining-1000);
+ assert.equal(svc.receive(event(wire('expired-month','expired','request',{deadline:Date.now()-1}),'expired-month',{root:'expired-root',sender:'ou_peer',senderType:'app'})).ignored,'expired');
+ s.close();
+ });
