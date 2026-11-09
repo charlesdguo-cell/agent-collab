@@ -43,4 +43,4 @@ Keep distinct projects in separate topics; multiple related questions can share 
 
 ## Current limits
 
-The core has maintainer-owned real two-bot / local-Codex evidence; this is not multi-machine user acceptance. Claude, native attachments and automatic artifact publishing are not accepted. Existing terminal windows are not automatically attached; a task handoff creates another managed session and must include its context. Do not promise cross-machine execution from a local path.
+The core has maintainer-owned real two-bot / local-Codex evidence; this is not multi-machine user acceptance. Rich-text and image inputs have maintainer-local Feishu/Codex evidence. Inspect the per-image status: attached means bytes were supplied, not that a visual interpretation is correct. Failed, timed-out or over-limit images are explicitly unavailable. Claude, non-image attachments and automatic artifact publishing are not accepted. Existing terminal windows are not automatically attached; a task handoff creates another managed session and must include its context. Do not promise cross-machine execution from a local path.

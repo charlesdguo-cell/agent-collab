@@ -59,3 +59,19 @@ if(m.method==='turn/start'){
   }
  } finally{rmSync(dir,{recursive:true,force:true});}
 });
+test('native images are forwarded in both new and resumed turns without changing session binding',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'collab-images-'));
+ try{
+  const bin=join(dir,'fake-codex');writeFileSync(bin,`#!${process.execPath}
+import('node:readline').then(({createInterface})=>createInterface({input:process.stdin}).on('line',line=>{
+ const m=JSON.parse(line),send=x=>console.log(JSON.stringify(x));
+ if(m.method==='initialize')send({id:m.id,result:{}});
+ if(['thread/start','thread/resume'].includes(m.method))send({id:m.id,result:{thread:{id:'image-thread'}}});
+ if(m.method==='turn/start'){
+  if(m.params.input.length!==2||m.params.input[0].type!=='text'||m.params.input[1].type!=='image'||m.params.input[1].url!=='data:image/png;base64,test')process.exit(9);
+  send({id:m.id,result:{}});send({method:'item/completed',params:{item:{type:'agentMessage',text:'{"reply":"checked","next":null}'}}});send({method:'turn/completed',params:{turn:{status:'completed'}}});
+ }
+}));`,{mode:0o755});
+  for(const session of [undefined,'image-thread'])assert.equal((await runConversation({runtime:'codex',project:dir,session},'conversation','inspect',{config:{codexBin:bin,timeoutMs:5000},imageInputs:[{type:'image',url:'data:image/png;base64,test'}]})).completed,true);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
